@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SignLang - AI Sign Language Translator</title>
+    
+    <!-- Load TensorFlow.js and Teachable Machine -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 0;
+            background: linear-gradient(to bottom, #0099ff, #00ccff);
+            color: white;
+        }
+        .container {
+            padding: 50px;
+        }
+        .btn {
+            background-color: white;
+            color: #007BFF;
+            padding: 10px 20px;
+            font-size: 16px;
+            border: none;
+            cursor: pointer;
+            margin-top: 20px;
+            border-radius: 5px;
+        }
+        .btn:hover {
+            background-color: lightgray;
+        }
+        #webcam-container {
+            margin-top: 20px;
+        }
+        #gesture {
+            font-size: 24px;
+            font-weight: bold;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <header>SignLang</header>
+    <div class="container">
+        <h1>Bridge the Gap with Sign Language</h1>
+        <p>Translate sign language gestures using real-time AI</p>
+        <button class="btn" id="startButton">Try This</button>
+        <div id="webcam-container"></div>
+        <p id="gesture">Gesture: ...</p>
+    </div>
+
+    <script>
+        let model, webcam;
+        const URL = "https://teachablemachine.withgoogle.com/models/a-phMk6Hw/"; // Replace with your model URL
+
+        document.getElementById("startButton").addEventListener("click", startWebcam);
+
+        async function loadModel() {
+            try {
+                console.log("Loading model...");
+                const modelURL = URL + "model.json";
+                const metadataURL = URL + "metadata.json";
+                model = await tmImage.load(modelURL, metadataURL);
+                console.log("Model Loaded");
+                document.getElementById('gesture').innerText = "Model Loaded. Detecting...";
+            } catch (error) {
+                console.error("Model Load Error:", error);
+                document.getElementById('gesture').innerText = "Error: Model failed to load.";
+            }
+        }
+
+        async function startWebcam() {
+            try {
+                console.log("Requesting webcam access...");
+                document.getElementById('gesture').innerText = "Starting Webcam...";
+
+                webcam = new tmImage.Webcam(500, 400, true); // width, height, flip
+                await webcam.setup(); // Request access to the webcam
+                await webcam.play();
+                
+                document.getElementById("webcam-container").innerHTML = ""; // Clear old instances
+                document.getElementById("webcam-container").appendChild(webcam.canvas);
+
+                // Load the model
+                await loadModel();
+
+                // Start prediction loop
+                window.requestAnimationFrame(predictLoop);
+            } catch (error) {
+                console.error("Webcam Access Error:", error);
+                document.getElementById('gesture').innerText = "Error: Webcam Access Denied! Check permissions.";
+                alert("Webcam access is blocked. Please allow camera access in browser settings.");
+            }
+        }
+
+        async function predictLoop() {
+            if (!webcam || !model) return;
+            webcam.update(); // Update the webcam frame
+
+            const predictions = await model.predict(webcam.canvas);
+            let highestPrediction = predictions.reduce((prev, current) => 
+                (prev.probability > current.probability) ? prev : current
+            );
+
+            document.getElementById('gesture').innerText = "Gesture: " + highestPrediction.className;
+            window.requestAnimationFrame(predictLoop);
+        }
+    </script>
+</body>
+</html>
